@@ -4,106 +4,131 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-// Volumetric fog particle system — drifting mist
 export default function FogEnvironment() {
-  const particlesRef = useRef<THREE.Points>(null);
-  const timeRef = useRef(0);
+  const cloudsRef = useRef<THREE.Group>(null);
 
-  const geometry = useMemo(() => {
-    const count = 500;
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-      positions[i * 3]     = (Math.random() - 0.5) * 30;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 8 + 2;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 20 - 5;
+  // Generate low-poly cloud coordinates
+  const clouds = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 40; i++) {
+      arr.push({
+        position: [
+          (Math.random() - 0.5) * 50,
+          -1.5 - Math.random() * 2, // Layered below the hilltop
+          (Math.random() - 0.5) * 50 - 5,
+        ] as [number, number, number],
+        scale: (0.8 + Math.random() * 1.5) as number,
+        speed: (0.02 + Math.random() * 0.05) as number,
+        wobble: Math.random() * 100,
+      });
     }
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
+    return arr;
   }, []);
 
-  const material = useMemo(() => {
-    // Generate soft circular gradient for mist particles
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-      gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.5)');
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 64, 64);
+  useFrame((state, delta) => {
+    if (cloudsRef.current) {
+      // Drifting clouds animation
+      cloudsRef.current.children.forEach((child, i) => {
+        const cloudData = clouds[i];
+        if (cloudData) {
+          child.position.x += cloudData.speed * delta * 15;
+          child.position.y += Math.sin(state.clock.getElapsedTime() * 0.5 + cloudData.wobble) * 0.002;
+          if (child.position.x > 25) {
+            child.position.x = -25;
+          }
+        }
+      });
     }
-    const texture = new THREE.CanvasTexture(canvas);
-
-    return new THREE.PointsMaterial({
-      color: '#5a5080',
-      size: 0.15,
-      map: texture,
-      transparent: true,
-      opacity: 0.25,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-  }, []);
-
-  useFrame((_, delta) => {
-    if (!particlesRef.current) return;
-    timeRef.current += delta;
-    const pos = particlesRef.current.geometry.attributes.position.array as Float32Array;
-
-    for (let i = 0; i < pos.length / 3; i++) {
-      pos[i * 3]     += 0.003 * delta * 60 * 0.3;
-      pos[i * 3 + 1] += Math.sin(timeRef.current * 0.2 + i) * 0.0008;
-      if (pos[i * 3] > 15) pos[i * 3] = -15;
-    }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
-    particlesRef.current.rotation.y = Math.sin(timeRef.current * 0.05) * 0.1;
   });
 
   return (
     <>
-      {/* Scene fog */}
-      <fog attach="fog" args={['#0a0a14', 8, 35]} />
+      {/* Dynamic bright cartoon sky color */}
+      <color attach="background" args={['#7ec0ee']} />
 
-      {/* Ambient lighting — gloomy purple tint */}
-      <ambientLight color="#1a1228" intensity={0.8} />
+      {/* Styled cartoon sky fog */}
+      <fog attach="fog" args={['#7ec0ee', 12, 38]} />
 
-      {/* Key light — dim amber from above-left */}
+      {/* Bright warm sunlight */}
+      <ambientLight color="#e3f2fd" intensity={0.9} />
       <directionalLight
-        color="#4a3820"
-        intensity={0.6}
-        position={[-5, 10, 5]}
+        color="#fffceb"
+        intensity={1.8}
+        position={[-10, 18, 12]}
         castShadow
-        shadow-mapSize={[1024, 1024] as unknown as number}
-        shadow-camera-far={30}
-        shadow-camera-near={0.1}
-        shadow-camera-left={-8}
-        shadow-camera-right={8}
-        shadow-camera-top={8}
-        shadow-camera-bottom={-8}
+        shadow-mapSize={[2048, 2048] as unknown as number}
+        shadow-camera-far={40}
+        shadow-camera-near={0.5}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
       />
 
-      {/* Fill light — cold blue from right */}
-      <pointLight color="#1a2a4a" intensity={0.4} position={[8, 3, -3]} />
+      {/* Bounce fill lighting for lush greenery */}
+      <directionalLight color="#a8e6cf" intensity={0.4} position={[0, -1, 0]} />
+      <pointLight color="#fff" intensity={0.5} position={[0, 4, 6]} />
 
-      {/* Rim light — eerie purple from behind */}
-      <pointLight color="#3a1a5a" intensity={0.5} position={[0, 5, -8]} />
+      {/* Floating Low-Poly Clouds Group */}
+      <group ref={cloudsRef}>
+        {clouds.map((c, i) => (
+          <group key={i} position={c.position} scale={[c.scale, c.scale, c.scale]}>
+            {/* Puffy cloud composite using spheres */}
+            <mesh castShadow>
+              <sphereGeometry args={[1.5, 8, 8]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.9} metalness={0.0} flatShading />
+            </mesh>
+            <mesh position={[1.1, 0.2, 0]} castShadow>
+              <sphereGeometry args={[1.1, 8, 8]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.9} flatShading />
+            </mesh>
+            <mesh position={[-1.1, 0.1, 0.2]} castShadow>
+              <sphereGeometry args={[1.0, 8, 8]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.9} flatShading />
+            </mesh>
+            <mesh position={[0.2, 0.1, 0.9]} castShadow>
+              <sphereGeometry args={[0.9, 8, 8]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.9} flatShading />
+            </mesh>
+          </group>
+        ))}
+      </group>
 
-      {/* Ground bounce */}
-      <pointLight color="#2a1a08" intensity={0.2} position={[0, -2, 0]} />
+      {/* Grassy Stylized Hilltop */}
+      <group position={[0, -2.1, 0]}>
+        {/* Main Hill dome */}
+        <mesh receiveShadow castShadow>
+          <sphereGeometry args={[12, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.22]} />
+          <meshStandardMaterial 
+            color="#5ca35c" 
+            roughness={0.85} 
+            metalness={0.05} 
+            flatShading
+          />
+        </mesh>
 
-      {/* Fog particles */}
-      <points ref={particlesRef} geometry={geometry} material={material} />
-
-      {/* Ground plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#0a0a12" roughness={1} metalness={0} />
-      </mesh>
+        {/* Individual grass patches/clumps for stylized texture */}
+        {[
+          [-1.5, 2.3, 1.2], [1.8, 2.2, 1.4], [-0.5, 2.4, 2.0], [0.8, 2.35, 2.2],
+          [-2.2, 2.0, 2.5], [2.1, 2.1, 2.4], [-3.0, 1.8, -1.0], [3.2, 1.7, -0.5],
+          [-1.0, 2.3, -2.2], [1.5, 2.2, -2.5], [0.0, 2.4, -1.8], [0.5, 2.4, 1.0]
+        ].map(([x, y, z], idx) => (
+          <group key={idx} position={[x, y, z]} scale={[0.12, 0.18, 0.12]}>
+            <mesh castShadow>
+              <coneGeometry args={[0.8, 2, 4]} />
+              <meshStandardMaterial color="#73b973" roughness={0.9} flatShading />
+            </mesh>
+            <mesh position={[0.3, -0.2, 0.2]} rotation={[0.2, 0.1, -0.3]} castShadow>
+              <coneGeometry args={[0.6, 1.6, 4]} />
+              <meshStandardMaterial color="#64ac64" roughness={0.9} flatShading />
+            </mesh>
+            <mesh position={[-0.3, -0.1, -0.2]} rotation={[-0.1, -0.2, 0.3]} castShadow>
+              <coneGeometry args={[0.5, 1.4, 4]} />
+              <meshStandardMaterial color="#82c782" roughness={0.9} flatShading />
+            </mesh>
+          </group>
+        ))}
+      </group>
     </>
   );
 }

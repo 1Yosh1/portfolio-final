@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useRef, useEffect } from 'react';
+import { Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, AdaptiveDpr, AdaptiveEvents, Preload } from '@react-three/drei';
-import { Physics } from '@react-three/rapier';
+import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import FogEnvironment from '@/components/scene/FogEnvironment';
 import Cabinet from '@/components/scene/Cabinet';
@@ -18,7 +18,7 @@ export default function SceneCanvas({ started }: SceneCanvasProps) {
   return (
     <Canvas
       id="portfolio-canvas"
-      shadows={{ type: THREE.PCFShadowMap }}   // ← replaces deprecated PCFSoftShadowMap
+      shadows={{ type: THREE.PCFShadowMap }}
       dpr={[1, 1.5]}
       camera={{ position: [0, 1.5, 7], fov: 60, near: 0.1, far: 100 }}
       gl={{
@@ -26,10 +26,9 @@ export default function SceneCanvas({ started }: SceneCanvasProps) {
         powerPreference: 'high-performance',
         alpha: false,
       }}
-      frameloop="always"                      // fog particles + physics need continuous render
+      frameloop="always"
       style={{ background: '#050508' }}
     >
-      {/* Performance optimizers */}
       <AdaptiveDpr pixelated />
       <AdaptiveEvents />
 
@@ -39,13 +38,17 @@ export default function SceneCanvas({ started }: SceneCanvasProps) {
         {started && (
           <Physics gravity={[0, -9.8, 0]} timeStep="vary">
             <Cabinet />
+            
+            {/* Invisible floor collider to catch the cabinet */}
+            <RigidBody type="fixed" position={[0, -0.05, 0]}>
+              <CuboidCollider args={[20, 0.1, 20]} />
+            </RigidBody>
           </Physics>
         )}
 
         <Preload all />
       </Suspense>
 
-      {/* Subtle orbit controls — limited so scene stays focused */}
       <OrbitControls
         ref={controlsRef}
         enablePan={false}
