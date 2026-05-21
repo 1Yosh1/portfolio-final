@@ -36,3 +36,8 @@ export const useCabinetStore = create<CabinetState>((set) => ({
   setFolderOpen: (open) => set({ isFolderOpen: open }),
   closeAll: () => set({ activeDrawer: null, activeFolder: null, activeProject: null, isFolderOpen: false }),
 }));
+
+if (typeof window !== 'undefined') {
+  (window as any).useCabinetStore = useCabinetStore;
+}
+

@@ -47,27 +47,21 @@ export default function Drawer({ id, label, yOffset, color, cabinetRef }: Drawer
 
   const isOpen = activeDrawer === id;
 
-  const animateDrawer = useCallback((open: boolean) => {
+  useEffect(() => {
     if (!meshRef.current) return;
+
+    // Animate drawer Z position based on isOpen state
     gsap.to(meshRef.current.position, {
-      z: open ? 1.55 : 0,
+      z: isOpen ? 1.55 : 0,
       duration: 0.9,
-      ease: open ? 'back.out(1.1)' : 'power3.inOut',
+      ease: isOpen ? 'back.out(1.1)' : 'power3.inOut',
     });
-  }, []);
 
-  const handleClick = useCallback(() => {
-    if (!cabinetLanded) return;
-
-    const nextDrawer = isOpen ? null : id;
-    setActiveDrawer(nextDrawer);
-    animateDrawer(!isOpen);
-
-    if (!isOpen && cabinetRef.current) {
+    // Animate camera zoom and position
+    if (isOpen && cabinetRef.current) {
       const worldPos = new THREE.Vector3();
       cabinetRef.current.getWorldPosition(worldPos);
 
-      // Camera zooms in closer to drawer
       gsap.to(camera.position, {
         x: worldPos.x + 0.5,
         y: worldPos.y + yOffset + 0.35,
@@ -82,8 +76,8 @@ export default function Drawer({ id, label, yOffset, color, cabinetRef }: Drawer
         ease: 'power3.inOut',
         onUpdate: () => camera.updateProjectionMatrix(),
       });
-    } else {
-      // Zoom back out to master scene angle
+    } else if (activeDrawer === null) {
+      // Only zoom back out to main scene view if no drawer is active
       gsap.to(camera.position, {
         x: 0, y: 1.5, z: 7,
         duration: 1.1,
@@ -97,7 +91,12 @@ export default function Drawer({ id, label, yOffset, color, cabinetRef }: Drawer
         onUpdate: () => camera.updateProjectionMatrix(),
       });
     }
-  }, [cabinetLanded, isOpen, id, setActiveDrawer, animateDrawer, camera, cabinetRef, yOffset]);
+  }, [isOpen, activeDrawer, camera, cabinetRef, yOffset]);
+
+  const handleClick = useCallback(() => {
+    if (!cabinetLanded) return;
+    setActiveDrawer(isOpen ? null : id);
+  }, [cabinetLanded, isOpen, id, setActiveDrawer]);
 
   const isInteractable = cabinetLanded;
 
