@@ -43,9 +43,6 @@ export default function FogEnvironment() {
 
   return (
     <>
-      {/* Dynamic bright cartoon sky color */}
-      <color attach="background" args={['#7ec0ee']} />
-
       {/* Styled cartoon sky fog */}
       <fog attach="fog" args={['#7ec0ee', 12, 38]} />
 

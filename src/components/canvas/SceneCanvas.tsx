@@ -24,10 +24,9 @@ export default function SceneCanvas({ started }: SceneCanvasProps) {
       gl={{
         antialias: true,
         powerPreference: 'high-performance',
-        alpha: false,
+        alpha: true,
       }}
       frameloop="always"
-      style={{ background: '#050508' }}
     >
       <AdaptiveDpr pixelated />
       <AdaptiveEvents />

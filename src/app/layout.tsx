@@ -41,7 +41,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${specialElite.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-[#0a0a0f] text-[#e8e0d0] overflow-hidden">
+      <body className="text-[#e8e0d0] overflow-hidden">
         <ThreeWarningFilter />
         {children}
       </body>
